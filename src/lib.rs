@@ -11,6 +11,11 @@ use wasm_bindgen::JsCast;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
+extern {
+    fn alert(s: &str);
+}
+
+#[wasm_bindgen]
 pub fn start() {
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();
@@ -25,6 +30,16 @@ pub fn start() {
         .unwrap()
         .dyn_into::<web_sys::CanvasRenderingContext2d>()
         .unwrap();
+
+    // canvas.hoge();
+    let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+        // context.begin_path();
+        // context.move_to(event.offset_x() as f64, event.offset_y() as f64);
+        // pressed.set(true);
+        alert("clicked!!");
+    }) as Box<dyn FnMut(_)>);
+    canvas.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref());
+    closure.forget();
 
     context.begin_path();
 
