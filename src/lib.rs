@@ -124,7 +124,9 @@ fn init_buffers(context: &WebGlRenderingContext) {
         -1.0, -1.0, 0.0
     ];
   
-    context.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &js_sys::Float32Array::from(vertices), WebGlRenderingContext::STATIC_DRAW);
+    unsafe {
+        context.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &js_sys::Float32Array::view(vertices), WebGlRenderingContext::STATIC_DRAW);
+    }
 }
 
 fn draw_scene(context: &WebGlRenderingContext) {
@@ -135,6 +137,7 @@ fn draw_scene(context: &WebGlRenderingContext) {
 
     let canvas = context.canvas().unwrap().dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
 
+    let mat4 = mat4_create();
     // let fieldOfView = 45.0 * std::f64::consts::PI / 180.0;
     // let aspect = canvas.client_width() / canvas.client_height();
     // let z_near = 0.1;
