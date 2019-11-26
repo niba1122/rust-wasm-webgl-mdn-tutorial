@@ -115,6 +115,7 @@ fn init_shaders(context: &WebGlRenderingContext) {
 
 fn init_buffers(context: &WebGlRenderingContext) {
     let square_vertices_buffer = context.create_buffer().unwrap();
+    context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&square_vertices_buffer));
     
     let vertices: &[f32] = &[
         1.0,  1.0,  0.0,
@@ -122,9 +123,8 @@ fn init_buffers(context: &WebGlRenderingContext) {
         1.0,  -1.0, 0.0,
         -1.0, -1.0, 0.0
     ];
-    let fuga = js_sys::Float32Array::from(vertices);
   
-    context.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &fuga, WebGlRenderingContext::STATIC_DRAW);
+    context.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &js_sys::Float32Array::from(vertices), WebGlRenderingContext::STATIC_DRAW);
 }
 
 fn draw_scene(context: &WebGlRenderingContext) {
