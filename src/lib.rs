@@ -203,5 +203,24 @@ fn draw_scene(
     let offset = 0;
     let vertex_count = 4;
     context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, offset, vertex_count);
+
+    log(&format!("vertex position: {:?}", vertex_position));
+    log(&format!("projection matrix: \n{}", format_as_matrix(projection_matrix, 4, 4)));
+    log(&format!("program projection matrix: {:?}", program_projection_matrix));
+    log(&format!("model view matrix: \n{}", format_as_matrix(model_view_matrix, 4, 4)));
+    log(&format!("program model view matrix: {:?}", program_model_view_matrix));
+}
+
+fn format_as_matrix<T: std::fmt::Display>(vec: Vec<T>, len_row: usize, len_column: usize) -> String {
+    let len = vec.len();
+    if len != len_column * len_row {
+        panic!("vector couldn't be divided by len_row");
+    }
+
+    (0..len_row).into_iter().map(|i| {
+        (0..len_column).into_iter().map(|j| {
+            format!("{}", &vec[i*len_row+j])
+        }).collect::<Vec<_>>().join(",")
+    }).collect::<Vec<_>>().join("\n")
 }
 
