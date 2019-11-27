@@ -47,11 +47,17 @@ pub fn start() -> Result<(), JsValue> {
     let shader_program = init_shaders(&context);
 
     let position_buffer = init_buffers(&context);
+    let vertex_position = context.get_attrib_location(&shader_program, "aVertexPosition") as u32;
+    let program_projection_matrix = context.get_uniform_location(&shader_program, "uProjectionMatrix").unwrap();
+    let program_model_view_matrix = context.get_uniform_location(&shader_program, "uModelViewMatrix").unwrap();
 
     draw_scene(
         &context,
         &position_buffer,
         &shader_program,
+        vertex_position,
+        program_projection_matrix,
+        program_model_view_matrix
     );
 
     Ok(())
@@ -141,6 +147,9 @@ fn draw_scene(
     context: &WebGl2RenderingContext,
     position_buffer: &WebGlBuffer,
     shader_program: &WebGlProgram,
+    vertex_position: u32,
+    program_projection_matrix: WebGlUniformLocation,
+    program_model_view_matrix: WebGlUniformLocation
 ) {
     context.clear_color(0.0, 0.0, 0.0, 1.0);
     context.enable(WebGl2RenderingContext::DEPTH_TEST);
@@ -167,7 +176,6 @@ fn draw_scene(
     let stride = 0;
     let offset = 0;
 
-    let vertex_position = context.get_attrib_location(&shader_program, "aVertexPosition") as u32;
     context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_buffer));
     context.vertex_attrib_pointer_with_i32(
         vertex_position,
@@ -180,14 +188,12 @@ fn draw_scene(
     context.enable_vertex_attrib_array(vertex_position);
     context.use_program(Some(&shader_program));
 
-    let program_projection_matrix = context.get_uniform_location(&shader_program, "uProjectionMatrix").unwrap();
     context.uniform_matrix4fv_with_f32_array(
         Some(&program_projection_matrix),
         false,
         &projection_matrix
     );
 
-    let program_model_view_matrix = context.get_uniform_location(&shader_program, "uModelViewMatrix").unwrap();
     context.uniform_matrix4fv_with_f32_array(
         Some(&program_model_view_matrix),
         false,
