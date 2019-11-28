@@ -58,7 +58,7 @@ pub fn start() -> Result<(), JsValue> {
     let program_projection_matrix = context.get_uniform_location(&shader_program, "uProjectionMatrix").unwrap();
     let program_model_view_matrix = context.get_uniform_location(&shader_program, "uModelViewMatrix").unwrap();
 
-    let start_time = js_sys::Date::now() / 1000.0;
+    let start_time = get_current_time();
     {
         // draw_scene(
         //     &context,
@@ -81,8 +81,6 @@ pub fn start() -> Result<(), JsValue> {
         let position_buffer = Rc::new(position_buffer);
         let position_color_buffer = Rc::new(position_color_buffer);
 
-        let window = web_sys::window().unwrap();
-
         {
             // let context = context.clone();
             // let shader_program = shader_program.clone();
@@ -92,7 +90,9 @@ pub fn start() -> Result<(), JsValue> {
             // let program_model_view_matrix = program_model_view_matrix.clone();
             // let position_buffer = position_buffer.clone();
             // let position_color_buffer = position_color_buffer.clone();
-            let c = &Closure::wrap(Box::new(move || {
+            let f = Rc::new(RefCell::new(None));
+            let g = f.clone();
+            *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
                 draw_scene(
                     &context,
                     &shader_program,
@@ -103,13 +103,13 @@ pub fn start() -> Result<(), JsValue> {
                     &position_buffer,
                     &position_color_buffer,
                     start_time,
-                    start_time + 0.03
+                    get_current_time()
                 );
-            }) as Box<dyn FnMut()>);
 
-            window
-                .request_animation_frame(c.as_ref().unchecked_ref())
-                .unwrap();
+                request_animation_frame(f.borrow().as_ref().unwrap());
+            }) as Box<dyn FnMut()>));
+
+            request_animation_frame(g.borrow().as_ref().unwrap());
         }
     }
 
@@ -292,23 +292,37 @@ fn draw_scene(
     let vertex_count = 4;
     context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, offset, vertex_count);
 
-    log(&format!("vertex position: {:?}", vertex_position));
-    log(&format!("projection matrix: \n{}", format_as_matrix(vec_projection_matrix, 4, 4)));
-    log(&format!("program projection matrix: {:?}", program_projection_matrix));
-    log(&format!("model view matrix: \n{}", format_as_matrix(vec_model_view_matrix, 4, 4)));
-    log(&format!("program model view matrix: {:?}", program_model_view_matrix));
+    // log(&format!("vertex position: {:?}", vertex_position));
+    // log(&format!("projection matrix: \n{}", format_as_matrix(vec_projection_matrix, 4, 4)));
+    // log(&format!("program projection matrix: {:?}", program_projection_matrix));
+    // log(&format!("model view matrix: \n{}", format_as_matrix(vec_model_view_matrix, 4, 4)));
+    // log(&format!("program model view matrix: {:?}", program_model_view_matrix));
 }
 
-fn format_as_matrix<T: std::fmt::Display>(vec: Vec<T>, len_row: usize, len_column: usize) -> String {
-    let len = vec.len();
-    if len != len_column * len_row {
-        panic!("vector couldn't be divided by len_row");
-    }
+// fn format_as_matrix<T: std::fmt::Display>(vec: Vec<T>, len_row: usize, len_column: usize) -> String {
+//     let len = vec.len();
+//     if len != len_column * len_row {
+//         panic!("vector couldn't be divided by len_row");
+//     }
 
-    (0..len_row).into_iter().map(|i| {
-        (0..len_column).into_iter().map(|j| {
-            format!("{}", &vec[i*len_row+j])
-        }).collect::<Vec<_>>().join(",")
-    }).collect::<Vec<_>>().join("\n")
+//     (0..len_row).into_iter().map(|i| {
+//         (0..len_column).into_iter().map(|j| {
+//             format!("{}", &vec[i*len_row+j])
+//         }).collect::<Vec<_>>().join(",")
+//     }).collect::<Vec<_>>().join("\n")
+// }
+
+fn get_current_time() -> f64 { // sec
+    js_sys::Date::now() / 1000.0
+}
+
+fn window() -> web_sys::Window {
+    web_sys::window().expect("no global `window` exists")
+}
+
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
 }
 
