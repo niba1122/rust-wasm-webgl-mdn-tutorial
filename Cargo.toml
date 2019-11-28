@@ -27,13 +27,19 @@ console_error_panic_hook = { version = "0.1.1", optional = true }
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4.2", optional = true }
 
+nalgebra-glm = "0.5.0"
+
 [dependencies.web-sys]
 version = "0.3.4"
 features = [
-  'CanvasRenderingContext2d',
   'Document',
   'Element',
   'HtmlCanvasElement',
+  'WebGlBuffer',
+  'WebGl2RenderingContext',
+  'WebGlProgram',
+  'WebGlShader',
+  'WebGlUniformLocation',
   'Window',
 ]
 
