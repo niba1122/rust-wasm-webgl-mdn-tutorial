@@ -1,5 +1,5 @@
 [package]
-name = "rust-wasm-fem"
+name = "rust-wasm-webgl-mdn-tutorial"
 version = "0.1.0"
 authors = ["Nobuhito Ibaraki <niba1122@gmail.com>"]
 edition = "2018"
