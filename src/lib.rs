@@ -24,25 +24,32 @@ extern "C" {
 }
 
 static FRAGMENT_SHADER: &'static str = r#"
-    varying lowp vec4 vColor;
+    varying highp vec3 vLighting;
 
     void main(void) {
-        gl_FragColor = vColor;
+        gl_FragColor = vec4(vec3(1, 1, 1) * vLighting, 1);
     }
 "#;
 
 static VERTEX_SHADER: &'static str = r#"
     attribute vec4 aVertexPosition;
-    attribute vec4 aVertexColor;
+    attribute vec3 aVertexNormal;
 
+    uniform mat4 uNormalMatrix;
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
 
-    varying lowp vec4 vColor;
+    varying highp vec3 vLighting;
 
     void main(void) {
         gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-        vColor = aVertexColor;
+        // Apply lighting effect
+        highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
+        highp vec3 directionalLightColor = vec3(1, 1, 1);
+        highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
+        highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
+        highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+        vLighting = ambientLight + (directionalLightColor * directional);
     }
 "#;
 
@@ -52,11 +59,16 @@ pub fn start() -> Result<(), JsValue> {
 
     let shader_program = init_shaders(&context);
 
-    let (position_buffer, position_color_buffer, cube_vertices_index_buffer) = init_buffers(&context);
+    let (
+        position_buffer,
+        cube_vertices_index_buffer,
+        cube_vertices_normal_buffer
+    ) = init_buffers(&context);
     let vertex_position = context.get_attrib_location(&shader_program, "aVertexPosition") as u32;
-    let vertex_color = context.get_attrib_location(&shader_program, "aVertexColor") as u32;
+    let vertex_normal = context.get_attrib_location(&shader_program, "aVertexNormal") as u32;
     let program_projection_matrix = context.get_uniform_location(&shader_program, "uProjectionMatrix").unwrap();
     let program_model_view_matrix = context.get_uniform_location(&shader_program, "uModelViewMatrix").unwrap();
+    let program_normal_matrix = context.get_uniform_location(&shader_program, "uNormalMatrix").unwrap();
     let start_time = get_current_time();
 
     {
@@ -67,12 +79,13 @@ pub fn start() -> Result<(), JsValue> {
                 &context,
                 &shader_program,
                 vertex_position,
-                vertex_color,
+                vertex_normal,
                 &program_projection_matrix,
                 &program_model_view_matrix,
+                &program_normal_matrix,
                 &position_buffer,
-                &position_color_buffer,
                 &cube_vertices_index_buffer,
+                &cube_vertices_normal_buffer,
                 start_time,
                 get_current_time()
             );
@@ -239,21 +252,71 @@ fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, 
         );
     }
 
-    (position_buffer, position_color_buffer, cube_vertices_index_buffer)
+    let cube_vertices_normal_buffer = context.create_buffer().unwrap();
+    context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_vertices_normal_buffer));
+
+    // 頂点の法線ベクトル
+    let vertex_normals = [
+        // 前面
+        0.0,  0.0,  1.0,
+        0.0,  0.0,  1.0,
+        0.0,  0.0,  1.0,
+        0.0,  0.0,  1.0,
+
+        // 背面
+        0.0,  0.0, -1.0,
+        0.0,  0.0, -1.0,
+        0.0,  0.0, -1.0,
+        0.0,  0.0, -1.0,
+
+        // 上面
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+
+        // 底面
+        0.0, -1.0,  0.0,
+        0.0, -1.0,  0.0,
+        0.0, -1.0,  0.0,
+        0.0, -1.0,  0.0,
+
+        // 右側面
+        1.0,  0.0,  0.0,
+        1.0,  0.0,  0.0,
+        1.0,  0.0,  0.0,
+        1.0,  0.0,  0.0,
+
+        // 左側面
+       -1.0,  0.0,  0.0,
+       -1.0,  0.0,  0.0,
+       -1.0,  0.0,  0.0,
+       -1.0,  0.0,  0.0
+    ];
+    unsafe {
+        context.buffer_data_with_array_buffer_view(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            &js_sys::Float32Array::view(&vertex_normals),
+            WebGl2RenderingContext::STATIC_DRAW
+        )
+    }
+
+    (position_buffer, cube_vertices_index_buffer, cube_vertices_normal_buffer)
 }
 
 fn draw_scene(
     context: &WebGl2RenderingContext,
     shader_program: &WebGlProgram,
     vertex_position: u32,
-    vertex_color: u32,
+    vertex_normal: u32,
     program_projection_matrix: &WebGlUniformLocation,
     program_model_view_matrix: &WebGlUniformLocation,
+    program_normal_matrix: &WebGlUniformLocation,
     position_buffer: &WebGlBuffer,
-    color_buffer: &WebGlBuffer,
     cube_vertices_index_buffer: &WebGlBuffer,
+    cube_vertices_normal_buffer: &WebGlBuffer,
     start_time: f64,
-    current_time: f64,
+    current_time: f64
 ) {
     context.clear_color(0.0, 0.0, 0.0, 1.0);
     context.enable(WebGl2RenderingContext::DEPTH_TEST);
@@ -271,10 +334,13 @@ fn draw_scene(
     let vec_projection_matrix = projection_matrix.iter().map(|v| *v).collect::<Vec<_>>();
 
     let delta = (current_time - start_time) as f32;
-    let model_view_matrix = glm::translate(&glm::TMat4::identity(), &glm::TVec3::new(-0.0, 0.0, -6.0));
+    let model_view_matrix = glm::translate(&glm::Mat4::identity(), &glm::TVec3::new(-0.0, 0.0, -6.0));
     let model_view_matrix = glm::rotate(&model_view_matrix, delta, &glm::TVec3::new(0.0, 0.0, 1.0));
     let model_view_matrix = glm::rotate(&model_view_matrix, delta*0.7, &glm::TVec3::new(0.0, 1.0, 0.0));
     let vec_model_view_matrix = model_view_matrix.iter().map(|v| *v).collect::<Vec<_>>();
+
+    let normal_matrix = glm::transpose(&glm::inverse(&model_view_matrix));
+    let vec_normal_matrix = normal_matrix.iter().map(|v| *v).collect::<Vec<_>>();
 
     {
         let num_components = 3;
@@ -295,21 +361,21 @@ fn draw_scene(
     }
 
     {
-        let num_components = 4;
+        let num_components = 3;
         let data_type: u32 = WebGl2RenderingContext::FLOAT;
         let normalize = false;
         let stride = 0;
         let offset = 0;
-        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&color_buffer));
+        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_vertices_normal_buffer));
         context.vertex_attrib_pointer_with_i32(
-            vertex_color,
+            vertex_normal,
             num_components,
             data_type,
             normalize,
             stride,
             offset
         );
-        context.enable_vertex_attrib_array(vertex_color);
+        context.enable_vertex_attrib_array(vertex_normal);
     }
 
     {
@@ -328,6 +394,12 @@ fn draw_scene(
         Some(program_model_view_matrix),
         false,
         &vec_model_view_matrix
+    );
+
+    context.uniform_matrix4fv_with_f32_array(
+        Some(program_normal_matrix),
+        false,
+        &vec_normal_matrix
     );
 
     let offset = 0;
