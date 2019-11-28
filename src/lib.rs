@@ -3,6 +3,8 @@ mod utils;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{WebGl2RenderingContext, WebGlShader, WebGlBuffer, WebGlProgram, WebGlUniformLocation};
+use std::rc::{Rc};
+use std::cell::{RefCell};
 
 extern crate nalgebra_glm as glm;
 
@@ -57,18 +59,59 @@ pub fn start() -> Result<(), JsValue> {
     let program_model_view_matrix = context.get_uniform_location(&shader_program, "uModelViewMatrix").unwrap();
 
     let start_time = js_sys::Date::now() / 1000.0;
-    draw_scene(
-        &context,
-        &shader_program,
-        vertex_position,
-        vertex_color,
-        program_projection_matrix,
-        program_model_view_matrix,
-        &position_buffer,
-        &position_color_buffer,
-        start_time,
-        start_time + 0.03
-    );
+    {
+        // draw_scene(
+        //     &context,
+        //     &shader_program,
+        //     vertex_position,
+        //     vertex_color,
+        //     program_projection_matrix,
+        //     program_model_view_matrix,
+        //     &position_buffer,
+        //     &position_color_buffer,
+        //     start_time,
+        //     start_time + 0.03
+        // );
+        let context = Rc::new(context);
+        let shader_program = Rc::new(shader_program);
+        let vertex_position = Rc::new(vertex_position);
+        let vertex_color = Rc::new(vertex_color);
+        let program_projection_matrix = Rc::new(program_projection_matrix);
+        let program_model_view_matrix = Rc::new(program_model_view_matrix);
+        let position_buffer = Rc::new(position_buffer);
+        let position_color_buffer = Rc::new(position_color_buffer);
+
+        let window = web_sys::window().unwrap();
+
+        {
+            // let context = context.clone();
+            // let shader_program = shader_program.clone();
+            // let vertex_position = vertex_position.clone();
+            // let vertex_color = vertex_color.clone();
+            // let program_projection_matrix = program_projection_matrix.clone();
+            // let program_model_view_matrix = program_model_view_matrix.clone();
+            // let position_buffer = position_buffer.clone();
+            // let position_color_buffer = position_color_buffer.clone();
+            let c = &Closure::wrap(Box::new(move || {
+                draw_scene(
+                    &context,
+                    &shader_program,
+                    *vertex_position,
+                    *vertex_color,
+                    &program_projection_matrix,
+                    &program_model_view_matrix,
+                    &position_buffer,
+                    &position_color_buffer,
+                    start_time,
+                    start_time + 0.03
+                );
+            }) as Box<dyn FnMut()>);
+
+            window
+                .request_animation_frame(c.as_ref().unchecked_ref())
+                .unwrap();
+        }
+    }
 
     Ok(())
 }
@@ -168,8 +211,8 @@ fn draw_scene(
     shader_program: &WebGlProgram,
     vertex_position: u32,
     vertex_color: u32,
-    program_projection_matrix: WebGlUniformLocation,
-    program_model_view_matrix: WebGlUniformLocation,
+    program_projection_matrix: &WebGlUniformLocation,
+    program_model_view_matrix: &WebGlUniformLocation,
     position_buffer: &WebGlBuffer,
     color_buffer: &WebGlBuffer,
     start_time: f64,
@@ -234,13 +277,13 @@ fn draw_scene(
     context.use_program(Some(&shader_program));
 
     context.uniform_matrix4fv_with_f32_array(
-        Some(&program_projection_matrix),
+        Some(program_projection_matrix),
         false,
         &vec_projection_matrix
     );
 
     context.uniform_matrix4fv_with_f32_array(
-        Some(&program_model_view_matrix),
+        Some(program_model_view_matrix),
         false,
         &vec_model_view_matrix
     );
