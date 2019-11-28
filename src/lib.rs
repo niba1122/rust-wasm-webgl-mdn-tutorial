@@ -52,7 +52,7 @@ pub fn start() -> Result<(), JsValue> {
 
     let shader_program = init_shaders(&context);
 
-    let (position_buffer, position_color_buffer) = init_buffers(&context);
+    let (position_buffer, position_color_buffer, cube_vertices_index_buffer) = init_buffers(&context);
     let vertex_position = context.get_attrib_location(&shader_program, "aVertexPosition") as u32;
     let vertex_color = context.get_attrib_location(&shader_program, "aVertexColor") as u32;
     let program_projection_matrix = context.get_uniform_location(&shader_program, "uProjectionMatrix").unwrap();
@@ -72,6 +72,7 @@ pub fn start() -> Result<(), JsValue> {
                 &program_model_view_matrix,
                 &position_buffer,
                 &position_color_buffer,
+                &cube_vertices_index_buffer,
                 start_time,
                 get_current_time()
             );
@@ -145,34 +146,100 @@ fn init_shaders(context: &WebGl2RenderingContext) -> WebGlProgram {
     shader_program
 }
 
-fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer) {
-    let vertices: &[f32] = &[
-        1.0,  1.0,
-        -1.0, 1.0,
-        1.0,  -1.0,
-        -1.0, -1.0
+fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, WebGlBuffer) {
+    let vertices = [
+        // 前面
+        -1.0, -1.0,  1.0,
+        1.0, -1.0,  1.0,
+        1.0,  1.0,  1.0,
+        -1.0,  1.0,  1.0,
+
+        // 背面
+        -1.0, -1.0, -1.0,
+        -1.0,  1.0, -1.0,
+        1.0,  1.0, -1.0,
+        1.0, -1.0, -1.0,
+
+        // 上面
+        -1.0,  1.0, -1.0,
+        -1.0,  1.0,  1.0,
+        1.0,  1.0,  1.0,
+        1.0,  1.0, -1.0,
+
+        // 底面
+        -1.0, -1.0, -1.0,
+        1.0, -1.0, -1.0,
+        1.0, -1.0,  1.0,
+        -1.0, -1.0,  1.0,
+
+        // 右側面
+        1.0, -1.0, -1.0,
+        1.0,  1.0, -1.0,
+        1.0,  1.0,  1.0,
+        1.0, -1.0,  1.0,
+
+        // 左側面
+        -1.0, -1.0, -1.0,
+        -1.0, -1.0,  1.0,
+        -1.0,  1.0,  1.0,
+        -1.0,  1.0, -1.0
     ];
-  
+
     let position_buffer = context.create_buffer().unwrap();
     context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_buffer));
     unsafe {
-        context.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &js_sys::Float32Array::view(vertices), WebGl2RenderingContext::STATIC_DRAW);
+        context.buffer_data_with_array_buffer_view(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            &js_sys::Float32Array::view(&vertices),
+            WebGl2RenderingContext::STATIC_DRAW
+        );
     }
   
-    let colors: &[f32] = &[
-        1.0,  1.0,  1.0,  1.0,    // 白
-        1.0,  0.0,  0.0,  1.0,    // 赤
-        0.0,  1.0,  0.0,  1.0,    // 緑
-        0.0,  0.0,  1.0,  1.0     // 青
+    let face_colors = [
+        [1.0,  1.0,  1.0,  1.0],    // 前面: 白
+        [1.0,  0.0,  0.0,  1.0],    // 背面: 赤
+        [0.0,  1.0,  0.0,  1.0],    // 上面: 緑
+        [0.0,  0.0,  1.0,  1.0],    // 底面: 青
+        [1.0,  1.0,  0.0,  1.0],    // 右側面: 黄
+        [1.0,  0.0,  1.0,  1.0]     // 左側面: 紫
     ];
+    let colors: Vec<f32> = face_colors.into_iter().flat_map(|cg| {
+        (0..4).into_iter().flat_map(|_| cg).map(|c| *c).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
 
     let position_color_buffer = context.create_buffer().unwrap();
     context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_color_buffer));
     unsafe {
-        context.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &js_sys::Float32Array::view(colors), WebGl2RenderingContext::STATIC_DRAW);
+        context.buffer_data_with_array_buffer_view(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            &js_sys::Float32Array::view(&colors),
+            WebGl2RenderingContext::STATIC_DRAW
+        );
     }
 
-    (position_buffer, position_color_buffer)
+    let cube_vertices_index_buffer = context.create_buffer().unwrap();
+    context.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, Some(&cube_vertices_index_buffer));
+
+    // この配列はそれぞれの面を 2 つの三角形として定義しており、
+    // 各三角形の位置を指定するために、頂点の配列を指し示す
+    // インデックスを使用します。
+    let cube_vertex_indices = [
+        0,  1,  2,      0,  2,  3,    // 前面
+        4,  5,  6,      4,  6,  7,    // 背面
+        8,  9,  10,     8,  10, 11,   // 上面
+        12, 13, 14,     12, 14, 15,   // 底面
+        16, 17, 18,     16, 18, 19,   // 右側面
+        20, 21, 22,     20, 22, 23    // 左側面
+    ];
+    unsafe {
+        context.buffer_data_with_array_buffer_view(
+            WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
+            &js_sys::Uint16Array::view(&cube_vertex_indices),
+            WebGl2RenderingContext::STATIC_DRAW
+        );
+    }
+
+    (position_buffer, position_color_buffer, cube_vertices_index_buffer)
 }
 
 fn draw_scene(
@@ -184,6 +251,7 @@ fn draw_scene(
     program_model_view_matrix: &WebGlUniformLocation,
     position_buffer: &WebGlBuffer,
     color_buffer: &WebGlBuffer,
+    cube_vertices_index_buffer: &WebGlBuffer,
     start_time: f64,
     current_time: f64,
 ) {
@@ -205,11 +273,12 @@ fn draw_scene(
     let delta = (current_time - start_time) as f32;
     let model_view_matrix = glm::translate(&glm::TMat4::identity(), &glm::TVec3::new(-0.0, 0.0, -6.0));
     let model_view_matrix = glm::rotate(&model_view_matrix, delta, &glm::TVec3::new(0.0, 0.0, 1.0));
+    let model_view_matrix = glm::rotate(&model_view_matrix, delta*0.7, &glm::TVec3::new(0.0, 1.0, 0.0));
     let vec_model_view_matrix = model_view_matrix.iter().map(|v| *v).collect::<Vec<_>>();
 
     {
-        let num_components = 2;
-        let rendering_type: u32 = WebGl2RenderingContext::FLOAT;
+        let num_components = 3;
+        let data_type: u32 = WebGl2RenderingContext::FLOAT;
         let normalize = false;
         let stride = 0;
         let offset = 0;
@@ -217,7 +286,7 @@ fn draw_scene(
         context.vertex_attrib_pointer_with_i32(
             vertex_position,
             num_components,
-            rendering_type,
+            data_type,
             normalize,
             stride,
             offset
@@ -227,7 +296,7 @@ fn draw_scene(
 
     {
         let num_components = 4;
-        let rendering_type: u32 = WebGl2RenderingContext::FLOAT;
+        let data_type: u32 = WebGl2RenderingContext::FLOAT;
         let normalize = false;
         let stride = 0;
         let offset = 0;
@@ -235,12 +304,16 @@ fn draw_scene(
         context.vertex_attrib_pointer_with_i32(
             vertex_color,
             num_components,
-            rendering_type,
+            data_type,
             normalize,
             stride,
             offset
         );
         context.enable_vertex_attrib_array(vertex_color);
+    }
+
+    {
+        context.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, Some(&cube_vertices_index_buffer))
     }
 
     context.use_program(Some(&shader_program));
@@ -258,8 +331,9 @@ fn draw_scene(
     );
 
     let offset = 0;
-    let vertex_count = 4;
-    context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, offset, vertex_count);
+    let vertex_count = 36;
+    let data_type = WebGl2RenderingContext::UNSIGNED_SHORT; // bufferの型UInt32Arrayに対応
+    context.draw_elements_with_i32(WebGl2RenderingContext::TRIANGLES, vertex_count, data_type, offset);
 
     // log(&format!("vertex position: {:?}", vertex_position));
     // log(&format!("projection matrix: \n{}", format_as_matrix(vec_projection_matrix, 4, 4)));
