@@ -44,7 +44,6 @@ static VERTEX_SHADER: &'static str = r#"
     }
 "#;
 
-
 #[wasm_bindgen]
 pub fn start() -> Result<(), JsValue> {
     let context = get_webgl_context_by_id("canvas");
@@ -57,6 +56,7 @@ pub fn start() -> Result<(), JsValue> {
     let program_projection_matrix = context.get_uniform_location(&shader_program, "uProjectionMatrix").unwrap();
     let program_model_view_matrix = context.get_uniform_location(&shader_program, "uModelViewMatrix").unwrap();
 
+    let start_time = js_sys::Date::now() / 1000.0;
     draw_scene(
         &context,
         &shader_program,
@@ -65,7 +65,9 @@ pub fn start() -> Result<(), JsValue> {
         program_projection_matrix,
         program_model_view_matrix,
         &position_buffer,
-        &position_color_buffer
+        &position_color_buffer,
+        start_time,
+        start_time + 0.03
     );
 
     Ok(())
@@ -169,7 +171,9 @@ fn draw_scene(
     program_projection_matrix: WebGlUniformLocation,
     program_model_view_matrix: WebGlUniformLocation,
     position_buffer: &WebGlBuffer,
-    color_buffer: &WebGlBuffer
+    color_buffer: &WebGlBuffer,
+    start_time: f64,
+    current_time: f64,
 ) {
     context.clear_color(0.0, 0.0, 0.0, 1.0);
     context.enable(WebGl2RenderingContext::DEPTH_TEST);
@@ -185,7 +189,10 @@ fn draw_scene(
 
     let projection_matrix = glm::perspective(aspect, field_of_view, z_near, z_far);
     let vec_projection_matrix = projection_matrix.iter().map(|v| *v).collect::<Vec<_>>();
+
+    let delta = (current_time - start_time) as f32;
     let model_view_matrix = glm::translate(&glm::TMat4::identity(), &glm::TVec3::new(-0.0, 0.0, -6.0));
+    let model_view_matrix = glm::rotate(&model_view_matrix, delta, &glm::TVec3::new(0.0, 0.0, 1.0));
     let vec_model_view_matrix = model_view_matrix.iter().map(|v| *v).collect::<Vec<_>>();
 
     {
