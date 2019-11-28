@@ -57,60 +57,29 @@ pub fn start() -> Result<(), JsValue> {
     let vertex_color = context.get_attrib_location(&shader_program, "aVertexColor") as u32;
     let program_projection_matrix = context.get_uniform_location(&shader_program, "uProjectionMatrix").unwrap();
     let program_model_view_matrix = context.get_uniform_location(&shader_program, "uModelViewMatrix").unwrap();
-
     let start_time = get_current_time();
+
     {
-        // draw_scene(
-        //     &context,
-        //     &shader_program,
-        //     vertex_position,
-        //     vertex_color,
-        //     program_projection_matrix,
-        //     program_model_view_matrix,
-        //     &position_buffer,
-        //     &position_color_buffer,
-        //     start_time,
-        //     start_time + 0.03
-        // );
-        let context = Rc::new(context);
-        let shader_program = Rc::new(shader_program);
-        let vertex_position = Rc::new(vertex_position);
-        let vertex_color = Rc::new(vertex_color);
-        let program_projection_matrix = Rc::new(program_projection_matrix);
-        let program_model_view_matrix = Rc::new(program_model_view_matrix);
-        let position_buffer = Rc::new(position_buffer);
-        let position_color_buffer = Rc::new(position_color_buffer);
+        let f = Rc::new(RefCell::new(None));
+        let g = f.clone();
+        *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+            draw_scene(
+                &context,
+                &shader_program,
+                vertex_position,
+                vertex_color,
+                &program_projection_matrix,
+                &program_model_view_matrix,
+                &position_buffer,
+                &position_color_buffer,
+                start_time,
+                get_current_time()
+            );
 
-        {
-            // let context = context.clone();
-            // let shader_program = shader_program.clone();
-            // let vertex_position = vertex_position.clone();
-            // let vertex_color = vertex_color.clone();
-            // let program_projection_matrix = program_projection_matrix.clone();
-            // let program_model_view_matrix = program_model_view_matrix.clone();
-            // let position_buffer = position_buffer.clone();
-            // let position_color_buffer = position_color_buffer.clone();
-            let f = Rc::new(RefCell::new(None));
-            let g = f.clone();
-            *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-                draw_scene(
-                    &context,
-                    &shader_program,
-                    *vertex_position,
-                    *vertex_color,
-                    &program_projection_matrix,
-                    &program_model_view_matrix,
-                    &position_buffer,
-                    &position_color_buffer,
-                    start_time,
-                    get_current_time()
-                );
+            request_animation_frame(f.borrow().as_ref().unwrap());
+        }) as Box<dyn FnMut()>));
 
-                request_animation_frame(f.borrow().as_ref().unwrap());
-            }) as Box<dyn FnMut()>));
-
-            request_animation_frame(g.borrow().as_ref().unwrap());
-        }
+        request_animation_frame(g.borrow().as_ref().unwrap());
     }
 
     Ok(())
