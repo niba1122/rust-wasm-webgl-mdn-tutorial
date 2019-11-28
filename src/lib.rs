@@ -123,8 +123,6 @@ fn init_shaders(context: &WebGl2RenderingContext) -> WebGlProgram {
     shader_program
 }
 
-// var horizAspect = 480.0/640.0;
-
 fn init_buffers(context: &WebGl2RenderingContext) -> WebGlBuffer {
     let position_buffer = context.create_buffer().unwrap();
     context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_buffer));
