@@ -4,6 +4,8 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{WebGl2RenderingContext, WebGlShader, WebGlBuffer, WebGlProgram, WebGlUniformLocation};
 
+extern crate nalgebra_glm as glm;
+
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
 #[cfg(feature = "wee_alloc")]
@@ -17,9 +19,6 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = console)]
     fn error(s: &str);
-
-    #[wasm_bindgen]
-    fn calc(field_of_view: f32, aspect: f32, z_near: f32, z_far: f32) -> js_sys::Object;
 }
 
 static FRAGMENT_SHADER: &'static str = r#"
@@ -184,12 +183,10 @@ fn draw_scene(
     let z_near = 0.1;
     let z_far = 100.0;
 
-    let result = calc(field_of_view, aspect, z_near, z_far);
-    let raw_projection_matrix: js_sys::Float32Array = js_sys::Reflect::get(&result, &js_sys::JsString::from("projectionMatrix")).unwrap().into();
-    let projection_matrix = js_sys::Float32Array::from(raw_projection_matrix).to_vec();
-
-    let raw_model_view_matrix: js_sys::Float32Array = js_sys::Reflect::get(&result, &js_sys::JsString::from("modelViewMatrix")).unwrap().into();
-    let model_view_matrix = js_sys::Float32Array::from(raw_model_view_matrix).to_vec();
+    let projection_matrix = glm::perspective(aspect, field_of_view, z_near, z_far);
+    let vec_projection_matrix = projection_matrix.iter().map(|v| *v).collect::<Vec<_>>();
+    let model_view_matrix = glm::translate(&glm::TMat4::identity(), &glm::TVec3::new(-0.0, 0.0, -6.0));
+    let vec_model_view_matrix = model_view_matrix.iter().map(|v| *v).collect::<Vec<_>>();
 
     {
         let num_components = 2;
@@ -232,13 +229,13 @@ fn draw_scene(
     context.uniform_matrix4fv_with_f32_array(
         Some(&program_projection_matrix),
         false,
-        &projection_matrix
+        &vec_projection_matrix
     );
 
     context.uniform_matrix4fv_with_f32_array(
         Some(&program_model_view_matrix),
         false,
-        &model_view_matrix
+        &vec_model_view_matrix
     );
 
     let offset = 0;
@@ -246,9 +243,9 @@ fn draw_scene(
     context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, offset, vertex_count);
 
     log(&format!("vertex position: {:?}", vertex_position));
-    log(&format!("projection matrix: \n{}", format_as_matrix(projection_matrix, 4, 4)));
+    log(&format!("projection matrix: \n{}", format_as_matrix(vec_projection_matrix, 4, 4)));
     log(&format!("program projection matrix: {:?}", program_projection_matrix));
-    log(&format!("model view matrix: \n{}", format_as_matrix(model_view_matrix, 4, 4)));
+    log(&format!("model view matrix: \n{}", format_as_matrix(vec_model_view_matrix, 4, 4)));
     log(&format!("program model view matrix: {:?}", program_model_view_matrix));
 }
 
