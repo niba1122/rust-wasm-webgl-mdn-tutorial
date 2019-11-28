@@ -145,7 +145,7 @@ fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer) 
     unsafe {
         context.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &js_sys::Float32Array::view(vertices), WebGl2RenderingContext::STATIC_DRAW);
     }
-
+  
     let colors: &[f32] = &[
         1.0,  1.0,  1.0,  1.0,    // 白
         1.0,  0.0,  0.0,  1.0,    // 赤
