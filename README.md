@@ -1,6 +1,6 @@
 # WebGL with Rust and WebAssembly by MDN Tutorial
 
-Performed MDN WebGL tutorial with Rust and WebAssembly.
+Performed [MDN WebGL tutorial](https://developer.mozilla.org/ja/docs/Web/API/WebGL_API/Tutorial/Getting_started_with_WebGL) with Rust and WebAssembly.
 
 * Getting started with WebGL
 * Adding 2D content to a WebGL context
@@ -11,6 +11,7 @@ Performed MDN WebGL tutorial with Rust and WebAssembly.
 * Lighting in WebGL
 * ~Animating textures in WebGL~
 
+*Omit applying texture
 
 ## Required
 
@@ -30,7 +31,7 @@ $ wasm-pack build
 
 ### Install dependencies
 
-**Before installing npm packages, building wasm is required**
+*Before installing npm packages, building wasm is required
 
 ```bash
 cd www
