@@ -2,7 +2,7 @@ mod utils;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{WebGl2RenderingContext, WebGlShader, WebGlBuffer, WebGlProgram, WebGlUniformLocation};
+use web_sys::{WebGlRenderingContext, WebGlShader, WebGlBuffer, WebGlProgram, WebGlUniformLocation};
 use std::rc::{Rc};
 use std::cell::{RefCell};
 
@@ -99,7 +99,7 @@ pub fn start() -> Result<(), JsValue> {
     Ok(())
 }
 
-fn get_webgl_context_by_id(id: &str) -> WebGl2RenderingContext {
+fn get_webgl_context_by_id(id: &str) -> WebGlRenderingContext {
     let document = web_sys::window()
         .unwrap()
         .document()
@@ -112,10 +112,10 @@ fn get_webgl_context_by_id(id: &str) -> WebGl2RenderingContext {
         .unwrap();
 
     let context = canvas
-        .get_context("webgl2")
+        .get_context("webgl")
         .unwrap()
         .unwrap()
-        .dyn_into::<WebGl2RenderingContext>()
+        .dyn_into::<WebGlRenderingContext>()
         .unwrap();
 
     context.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
@@ -123,28 +123,28 @@ fn get_webgl_context_by_id(id: &str) -> WebGl2RenderingContext {
     context
 }
 
-fn get_shader(context: &WebGl2RenderingContext, shader_type: u32, source: &str) -> WebGlShader {
+fn get_shader(context: &WebGlRenderingContext, shader_type: u32, source: &str) -> WebGlShader {
     let shader = context.create_shader(shader_type).unwrap();
 
     context.shader_source(&shader, source);
     context.compile_shader(&shader);
-    let compile_is_succeeded = context.get_shader_parameter(&shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
+    let compile_is_succeeded = context.get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS).as_bool().unwrap();
     if !compile_is_succeeded {
         panic!("シェーダーのコンパイルでエラーが発生しました");
     }
     shader
 }
 
-fn init_shaders(context: &WebGl2RenderingContext) -> WebGlProgram {
-    let fragment_shader = get_shader(&context, WebGl2RenderingContext::FRAGMENT_SHADER, FRAGMENT_SHADER);
-    let vertex_shader = get_shader(&context, WebGl2RenderingContext::VERTEX_SHADER, VERTEX_SHADER);
+fn init_shaders(context: &WebGlRenderingContext) -> WebGlProgram {
+    let fragment_shader = get_shader(&context, WebGlRenderingContext::FRAGMENT_SHADER, FRAGMENT_SHADER);
+    let vertex_shader = get_shader(&context, WebGlRenderingContext::VERTEX_SHADER, VERTEX_SHADER);
 
     let shader_program = context.create_program().unwrap();
     context.attach_shader(&shader_program, &vertex_shader);
     context.attach_shader(&shader_program, &fragment_shader);
     context.link_program(&shader_program);
 
-    let shader_is_created = context.get_program_parameter(&shader_program, WebGl2RenderingContext::LINK_STATUS).as_bool().unwrap();
+    let shader_is_created = context.get_program_parameter(&shader_program, WebGlRenderingContext::LINK_STATUS).as_bool().unwrap();
 
     if !shader_is_created {
         let info = context.get_program_info_log(&shader_program).unwrap();
@@ -159,7 +159,7 @@ fn init_shaders(context: &WebGl2RenderingContext) -> WebGlProgram {
     shader_program
 }
 
-fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, WebGlBuffer) {
+fn init_buffers(context: &WebGlRenderingContext) -> (WebGlBuffer, WebGlBuffer, WebGlBuffer) {
     let vertices = [
         // 前面
         -1.0, -1.0,  1.0,
@@ -199,12 +199,12 @@ fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, 
     ];
 
     let position_buffer = context.create_buffer().unwrap();
-    context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_buffer));
+    context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&position_buffer));
     unsafe {
         context.buffer_data_with_array_buffer_view(
-            WebGl2RenderingContext::ARRAY_BUFFER,
+            WebGlRenderingContext::ARRAY_BUFFER,
             &js_sys::Float32Array::view(&vertices),
-            WebGl2RenderingContext::STATIC_DRAW
+            WebGlRenderingContext::STATIC_DRAW
         );
     }
   
@@ -221,17 +221,17 @@ fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, 
     }).collect::<Vec<_>>();
 
     let position_color_buffer = context.create_buffer().unwrap();
-    context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_color_buffer));
+    context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&position_color_buffer));
     unsafe {
         context.buffer_data_with_array_buffer_view(
-            WebGl2RenderingContext::ARRAY_BUFFER,
+            WebGlRenderingContext::ARRAY_BUFFER,
             &js_sys::Float32Array::view(&colors),
-            WebGl2RenderingContext::STATIC_DRAW
+            WebGlRenderingContext::STATIC_DRAW
         );
     }
 
     let cube_vertices_index_buffer = context.create_buffer().unwrap();
-    context.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, Some(&cube_vertices_index_buffer));
+    context.bind_buffer(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, Some(&cube_vertices_index_buffer));
 
     // この配列はそれぞれの面を 2 つの三角形として定義しており、
     // 各三角形の位置を指定するために、頂点の配列を指し示す
@@ -246,14 +246,14 @@ fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, 
     ];
     unsafe {
         context.buffer_data_with_array_buffer_view(
-            WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
+            WebGlRenderingContext::ELEMENT_ARRAY_BUFFER,
             &js_sys::Uint16Array::view(&cube_vertex_indices),
-            WebGl2RenderingContext::STATIC_DRAW
+            WebGlRenderingContext::STATIC_DRAW
         );
     }
 
     let cube_vertices_normal_buffer = context.create_buffer().unwrap();
-    context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_vertices_normal_buffer));
+    context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&cube_vertices_normal_buffer));
 
     // 頂点の法線ベクトル
     let vertex_normals = [
@@ -295,9 +295,9 @@ fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, 
     ];
     unsafe {
         context.buffer_data_with_array_buffer_view(
-            WebGl2RenderingContext::ARRAY_BUFFER,
+            WebGlRenderingContext::ARRAY_BUFFER,
             &js_sys::Float32Array::view(&vertex_normals),
-            WebGl2RenderingContext::STATIC_DRAW
+            WebGlRenderingContext::STATIC_DRAW
         )
     }
 
@@ -305,7 +305,7 @@ fn init_buffers(context: &WebGl2RenderingContext) -> (WebGlBuffer, WebGlBuffer, 
 }
 
 fn draw_scene(
-    context: &WebGl2RenderingContext,
+    context: &WebGlRenderingContext,
     shader_program: &WebGlProgram,
     vertex_position: u32,
     vertex_normal: u32,
@@ -319,9 +319,9 @@ fn draw_scene(
     current_time: f64
 ) {
     context.clear_color(0.0, 0.0, 0.0, 1.0);
-    context.enable(WebGl2RenderingContext::DEPTH_TEST);
-    context.depth_func(WebGl2RenderingContext::LEQUAL);
-    context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT);
+    context.enable(WebGlRenderingContext::DEPTH_TEST);
+    context.depth_func(WebGlRenderingContext::LEQUAL);
+    context.clear(WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::DEPTH_BUFFER_BIT);
 
     let canvas = context.canvas().unwrap().dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
 
@@ -344,11 +344,11 @@ fn draw_scene(
 
     {
         let num_components = 3;
-        let data_type: u32 = WebGl2RenderingContext::FLOAT;
+        let data_type: u32 = WebGlRenderingContext::FLOAT;
         let normalize = false;
         let stride = 0;
         let offset = 0;
-        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_buffer));
+        context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&position_buffer));
         context.vertex_attrib_pointer_with_i32(
             vertex_position,
             num_components,
@@ -362,11 +362,11 @@ fn draw_scene(
 
     {
         let num_components = 3;
-        let data_type: u32 = WebGl2RenderingContext::FLOAT;
+        let data_type: u32 = WebGlRenderingContext::FLOAT;
         let normalize = false;
         let stride = 0;
         let offset = 0;
-        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_vertices_normal_buffer));
+        context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&cube_vertices_normal_buffer));
         context.vertex_attrib_pointer_with_i32(
             vertex_normal,
             num_components,
@@ -379,7 +379,7 @@ fn draw_scene(
     }
 
     {
-        context.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, Some(&cube_vertices_index_buffer))
+        context.bind_buffer(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, Some(&cube_vertices_index_buffer))
     }
 
     context.use_program(Some(&shader_program));
@@ -404,8 +404,8 @@ fn draw_scene(
 
     let offset = 0;
     let vertex_count = 36;
-    let data_type = WebGl2RenderingContext::UNSIGNED_SHORT; // bufferの型UInt32Arrayに対応
-    context.draw_elements_with_i32(WebGl2RenderingContext::TRIANGLES, vertex_count, data_type, offset);
+    let data_type = WebGlRenderingContext::UNSIGNED_SHORT; // bufferの型UInt32Arrayに対応
+    context.draw_elements_with_i32(WebGlRenderingContext::TRIANGLES, vertex_count, data_type, offset);
 
     // log(&format!("vertex position: {:?}", vertex_position));
     // log(&format!("projection matrix: \n{}", format_as_matrix(vec_projection_matrix, 4, 4)));
